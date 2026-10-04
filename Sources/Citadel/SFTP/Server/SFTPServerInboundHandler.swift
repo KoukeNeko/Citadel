@@ -255,7 +255,9 @@ final class SFTPServerInboundHandler: ChannelInboundHandler {
                     )
                 ))
             )
-        }.flatMapErrorThrowing { _ in }
+        }.flatMapError { error -> EventLoopFuture<Void> in
+            self.replyStatus(for: error, requestId: command.requestId, context: context)
+        }
     }
     
     func lstat(command: SFTPMessage.LStat, context: ChannelHandlerContext) {
@@ -273,9 +275,30 @@ final class SFTPServerInboundHandler: ChannelInboundHandler {
                     )
                 ))
             )
-        }.flatMapErrorThrowing { _ in }
+        }.flatMapError { error -> EventLoopFuture<Void> in
+            self.replyStatus(for: error, requestId: command.requestId, context: context)
+        }
     }
     
+    /// Answers a failed request with a status instead of leaving the client
+    /// waiting forever. A delegate that throws an `SFTPMessage.Status` picks
+    /// the code, so a missing path can be reported as `noSuchFile`.
+    private func replyStatus(
+        for error: Error, requestId: UInt32, context: ChannelHandlerContext
+    ) -> EventLoopFuture<Void> {
+        let status = error as? SFTPMessage.Status
+        return context.channel.writeAndFlush(
+            SFTPMessage.status(
+                SFTPMessage.Status(
+                    requestId: requestId,
+                    errorCode: status?.errorCode ?? .failure,
+                    message: status?.message ?? "",
+                    languageTag: "EN"
+                )
+            )
+        )
+    }
+
     func realPath(command: SFTPMessage.RealPath, context: ChannelHandlerContext) {
         let promise = context.eventLoop.makePromise(of: [SFTPPathComponent].self)
         promise.completeWithTask {

@@ -307,6 +307,13 @@ public enum SFTPMessage: Sendable {
         public let errorCode: SFTPStatusCode
         public let message: String
         public let languageTag: String
+
+        public init(requestId: UInt32, errorCode: SFTPStatusCode, message: String, languageTag: String) {
+            self.requestId = requestId
+            self.errorCode = errorCode
+            self.message = message
+            self.languageTag = languageTag
+        }
         
         public var localizedDescription: String { "\(message)" }
         public var debugDescription: String { "{\(self.requestId)}(code: \(self.errorCode.debugDescription), \(self.languageTag)#'\(self.message)')" }
